@@ -1,6 +1,11 @@
-from altair.utils.schemapi import disable_debug_mode
 import streamlit as st
 from modules import utils
+from modules.operations import (
+    parse_set,
+    operate_binary_by_universe,
+    operate_unary_by_universe,
+)
+from modules.diagram import draw_venn
 
 # --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(
@@ -100,23 +105,80 @@ st.markdown("""
 /* Ocultar elementos por defecto */
 footer {visibility: hidden;}
 #MainMenu {visibility: hidden;}
+
+/* Alertas intrusivas superiores */
+.alert-banner {
+    position: sticky;
+    top: 0;
+    z-index: 9999;
+    padding: 14px 18px;
+    border-radius: 10px;
+    margin: 0 0 14px 0;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+}
+.alert-error {
+    background: linear-gradient(135deg, #ef4444, #b91c1c);
+    color: #fff;
+}
+.alert-warning {
+    background: linear-gradient(135deg, #f59e0b, #b45309);
+    color: #111827;
+}
+ .alert-success {
+     background: linear-gradient(135deg, #22c55e, #15803d);
+     color: #fff;
+ }
+.alert-icon {
+    font-size: 1.2rem;
+}
 </style>
 """, unsafe_allow_html=True)
 
 for k in ["u", "a", "b", "s"]:
     st.session_state.setdefault(k, "")
+st.session_state.setdefault("alerts", [])
+# Reservar contenedor superior para alertas y llenarlo al final
+alert_container = st.empty()
 
-col_icon1, _ = st.columns([0.05, 2])
-with col_icon1:
-    if st.button("🧹", help="Limpiar todos los campos"):
-        st.session_state["u"] = ""
-        st.session_state["a"] = ""
-        st.session_state["b"] = ""
-        st.session_state["s"] = ""
+def add_alert(message: str, level: str = "error"):
+    # level: "error" | "warning"
+    st.session_state["alerts"].append({"message": message, "level": level})
+
+def render_alerts(container):
+    alerts = st.session_state.get("alerts", [])
+    if not alerts:
+        container.empty()
+        return
+    html_blocks = []
+    for alert in alerts:
+        level = alert.get("level", "error")
+        cls = "alert-error" if level == "error" else "alert-warning"
+        icon = "🚫" if level == "error" else "⚠️"
+        html_blocks.append(
+            f'<div class="alert-banner {cls}"><span class="alert-icon">{icon}</span><span>{alert.get("message","")}</span></div>'
+        )
+    container.markdown("\n".join(html_blocks), unsafe_allow_html=True)
+    # limpiar alertas tras mostrarlas para que no persistan en cada rerun
+    st.session_state["alerts"] = []
 
 # --- HEADER ---
 st.markdown('<h1 class="main-title"> Operaciones con Conjuntos</h1>', unsafe_allow_html=True)
 st.markdown('<p class="subtitle"> <i> Visualiza y calcula operaciones entre conjuntos de forma interactiva </i> </p>', unsafe_allow_html=True)
+
+# Botón limpiar arriba a la derecha bajo el título
+_col_a, _col_b = st.columns([3, 1])
+with _col_b:
+    if st.button("🧹 Limpiar", use_container_width=True, help="Limpiar todos los campos"):
+        st.session_state["u"] = ""
+        st.session_state["a"] = ""
+        st.session_state["b"] = ""
+        st.session_state["s"] = ""
+        # mostrar confirmación arriba
+        add_alert("Campos limpiados correctamente.", "success")
 
 # --- INPUTS ---
 col1, col2, col3 = st.columns(3, gap="large")
@@ -163,14 +225,115 @@ with tab3:
         st.button("🔵 B' ", use_container_width=True, key="comp_b")
 
 
-# --- CONJUNTO SOLUCIÓN ---
-
-st.markdown('<h3 style="color:white; margin-top:2rem; font-weight:550;"> 📦 Conjunto solución</h3>', unsafe_allow_html=True)
-st.text_input("Solución", placeholder="Ej: 2,4,6", label_visibility="collapsed", key="s", disabled=True)
-
 # --- DIAGRAMA DE VENN ---
 st.markdown('<h2 style="color:white; margin-top:2rem; font-weight:550;"> Diagrama de Venn</h2>', unsafe_allow_html=True)
 
+# --- LÓGICA ---
+def try_parse_inputs():
+    """Intenta convertir los textos a conjuntos. Devuelve (u, a, b) o None si hay error."""
+    try:
+        u = parse_set(st.session_state.get("u", ""))
+        a = parse_set(st.session_state.get("a", ""))
+        b = parse_set(st.session_state.get("b", ""))
+        return u, a, b
+    except ValueError as e:
+        add_alert(str(e), "error")
+        return None
 
 
+def validate_no_duplicates():
+    dup_u = utils.find_duplicates_in_csv(st.session_state.get("u", ""))
+    dup_a = utils.find_duplicates_in_csv(st.session_state.get("a", ""))
+    dup_b = utils.find_duplicates_in_csv(st.session_state.get("b", ""))
+    if dup_u:
+        add_alert(f"U contiene elementos repetidos: {', '.join(sorted(dup_u))}", "warning")
+    if dup_a:
+        add_alert(f"A contiene elementos repetidos: {', '.join(sorted(dup_a))}", "warning")
+    if dup_b:
+        add_alert(f"B contiene elementos repetidos: {', '.join(sorted(dup_b))}", "warning")
+    return not (dup_u or dup_a or dup_b)
 
+
+def validate_membership(u, a, b):
+    not_in_u_a = utils.elements_not_in_universe(u, a)
+    not_in_u_b = utils.elements_not_in_universe(u, b)
+    if not_in_u_a:
+        add_alert(f"Elementos de A que no pertenecen a U: {utils.format_set(not_in_u_a)}", "error")
+    if not_in_u_b:
+        add_alert(f"Elementos de B que no pertenecen a U: {utils.format_set(not_in_u_b)}", "error")
+    return not (not_in_u_a or not_in_u_b)
+
+
+def update_solution(result_set):
+    formatted = utils.format_set(result_set)
+    st.session_state["s"] = formatted
+    # mantener sincronizado el widget si ya existe
+    st.session_state["s_widget"] = formatted
+
+
+# Validaciones visuales tempranas
+validate_no_duplicates()
+
+
+def on_click_operation(op):
+    parsed = try_parse_inputs()
+    if not parsed:
+        return
+    u, a, b = parsed
+    if not validate_no_duplicates():
+        return
+    if not validate_membership(u, a, b):
+        return
+    # Usar la versión basada en universo para alinear con la lógica Java
+    if op == "union":
+        update_solution(operate_binary_by_universe(u, a, b, 'union'))
+    elif op == "inter":
+        update_solution(operate_binary_by_universe(u, a, b, 'inter'))
+    elif op == "a_b":
+        update_solution(operate_binary_by_universe(u, a, b, 'diff_a_b'))
+    elif op == "b_a":
+        update_solution(operate_binary_by_universe(u, a, b, 'diff_b_a'))
+    elif op == "sym":
+        update_solution(operate_binary_by_universe(u, a, b, 'sym'))
+    elif op == "comp_a":
+        update_solution(operate_unary_by_universe(u, a, 'comp'))
+    elif op == "comp_b":
+        update_solution(operate_unary_by_universe(u, b, 'comp'))
+
+
+# Disparar operaciones según clic
+if st.session_state.get("union"):
+    on_click_operation("union")
+if st.session_state.get("inter"):
+    on_click_operation("inter")
+if st.session_state.get("a_b"):
+    on_click_operation("a_b")
+if st.session_state.get("b_a"):
+    on_click_operation("b_a")
+if st.session_state.get("sym"):
+    on_click_operation("sym")
+if st.session_state.get("comp_a"):
+    on_click_operation("comp_a")
+if st.session_state.get("comp_b"):
+    on_click_operation("comp_b")
+
+
+# --- CONJUNTO SOLUCIÓN ---
+st.markdown('<h3 style="color:white; margin-top:2rem; font-weight:550;"> 📦 Conjunto solución</h3>', unsafe_allow_html=True)
+st.text_input(
+    "Solución",
+    placeholder="Ej: 2,4,6",
+    label_visibility="collapsed",
+    value=st.session_state.get("s", ""),
+    key="s_widget",
+)
+
+# Diagrama
+parsed_inputs = try_parse_inputs()
+if parsed_inputs:
+    u, a, b = parsed_inputs
+    fig = draw_venn(a, b, labels=("A", "B"))
+    st.pyplot(fig, use_container_width=True)
+
+# Renderizar alertas al final del ciclo para asegurar visibilidad inmediata
+render_alerts(alert_container)
