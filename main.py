@@ -5,7 +5,7 @@ from modules.operations import (
     operate_binary_by_universe,
     operate_unary_by_universe,
 )
-from modules.diagram import draw_venn
+from modules.diagram import draw_venn, draw_venn_with_highlight
 
 # --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(
@@ -235,7 +235,12 @@ def try_parse_inputs():
         u = parse_set(st.session_state.get("u", ""))
         a = parse_set(st.session_state.get("a", ""))
         b = parse_set(st.session_state.get("b", ""))
-        return u, a, b
+        # Asegurar que el Universo contenga A y B
+        effective_u = set(u) | set(a) | set(b)
+        if effective_u != u:
+            # Avisar de que U se expandió para contener A y B
+            add_alert("El Universo se ha ajustado para contener A y B.", "warning")
+        return effective_u, a, b
     except ValueError as e:
         add_alert(str(e), "error")
         return None
@@ -282,23 +287,29 @@ def on_click_operation(op):
     u, a, b = parsed
     if not validate_no_duplicates():
         return
-    if not validate_membership(u, a, b):
-        return
+    # Ya garantizamos que U contiene A y B mediante effective_u, no es necesario validar pertenencia
     # Usar la versión basada en universo para alinear con la lógica Java
     if op == "union":
         update_solution(operate_binary_by_universe(u, a, b, 'union'))
+        st.session_state["last_op"] = "union"
     elif op == "inter":
         update_solution(operate_binary_by_universe(u, a, b, 'inter'))
+        st.session_state["last_op"] = "inter"
     elif op == "a_b":
         update_solution(operate_binary_by_universe(u, a, b, 'diff_a_b'))
+        st.session_state["last_op"] = "diff_a_b"
     elif op == "b_a":
         update_solution(operate_binary_by_universe(u, a, b, 'diff_b_a'))
+        st.session_state["last_op"] = "diff_b_a"
     elif op == "sym":
         update_solution(operate_binary_by_universe(u, a, b, 'sym'))
+        st.session_state["last_op"] = "sym"
     elif op == "comp_a":
         update_solution(operate_unary_by_universe(u, a, 'comp'))
+        st.session_state["last_op"] = "comp_a"
     elif op == "comp_b":
         update_solution(operate_unary_by_universe(u, b, 'comp'))
+        st.session_state["last_op"] = "comp_b"
 
 
 # Disparar operaciones según clic
@@ -328,11 +339,15 @@ st.text_input(
     key="s_widget",
 )
 
-# Diagrama
+# Diagrama (se genera apenas hay datos; si además hay operación seleccionada, se resalta)
 parsed_inputs = try_parse_inputs()
 if parsed_inputs:
     u, a, b = parsed_inputs
-    fig = draw_venn(a, b, labels=("A", "B"))
+    op = st.session_state.get("last_op")
+    if op:
+        fig = draw_venn_with_highlight(a, b, op=op, labels=("A", "B"), universe=u)
+    else:
+        fig = draw_venn(a, b, labels=("A", "B"), universe=u)
     st.pyplot(fig, use_container_width=True)
 
 # Renderizar alertas al final del ciclo para asegurar visibilidad inmediata

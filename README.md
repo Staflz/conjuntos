@@ -24,7 +24,7 @@ Uso básico
    - Exige que A y B sean subconjuntos de U.
    Los mensajes aparecen en un banner superior “intrusivo” para mayor visibilidad.
 2) Elegir una operación en las pestañas: Básicas (∪, ∩), Diferencias (A−B, B−A, A△B) o Complementos (A′, B′).
-3) Ver el resultado en “Conjunto solución” y el diagrama de Venn debajo.
+3) Ver el resultado en “Conjunto solución” y el diagrama de Venn debajo. El diagrama se genera apenas hay datos válidos en U, A y B; al seleccionar una operación, se resalta la región correspondiente.
 4) Botón “🧹 Limpiar” (arriba a la derecha) para reiniciar U, A, B y la solución. Muestra confirmación en verde.
 
 Detalles de validación
@@ -50,12 +50,13 @@ Cómo se calculan las operaciones
 Interfaz y estado
 - Los botones disparan el cálculo; el resultado se escribe en `st.session_state["s"]` y se refleja en el input de solución (`key="s_widget"`). Se evita escribir en la misma clave del widget para no generar errores de Streamlit.
 - Las alertas se agregan con `add_alert(mensaje, nivel)` y se renderizan al inicio en un contenedor “sticky”. Niveles usados: error (rojo), warning (ámbar), success (verde).
+- Universo efectivo: si el U ingresado no contiene A o B, se ajusta automáticamente a U′ = U ∪ A ∪ B y se muestra una advertencia. El diagrama etiqueta el Universo mostrando solo U − (A ∪ B).
 
 Estructura del proyecto
 - `main.py`: UI de Streamlit, validaciones visuales, disparo de operaciones, banner de alertas y sincronización del resultado.
 - `modules/operations.py`: `parse_set`, `operate_binary_by_universe`, `operate_unary_by_universe`.
 - `modules/utils.py`: `format_set`, `find_duplicates_in_csv`, `elements_not_in_universe`.
-- `modules/diagram.py`: `draw_venn(a, b)` para el diagrama de Venn.
+- `modules/diagram.py`: `draw_venn(a, b, universe)` y `draw_venn_with_highlight(a, b, op, universe)` para el diagrama de Venn. Las etiquetas de las regiones muestran elementos (A−B, B−A y A∩B) en lugar de conteos. El rectángulo del Universo se etiqueta con U − (A ∪ B). En complementos, el tono del Universo coincide con el resaltado de la operación.
 
 Resolver problemas comunes
 - No se ve el resultado: verifica que A y B ⊆ U y que el formato sea correcto (sin comas dobles, sin letras, sin negativos).
