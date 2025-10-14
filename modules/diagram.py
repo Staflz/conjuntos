@@ -20,6 +20,15 @@ def draw_venn(a, b, labels=("A", "B"), universe=None):
         lab_01.set_text(format_set(b_only))
     if lab_11 is not None:
         lab_11.set_text(format_set(inter))
+    
+    # Añadir bordes a los círculos
+    region_ids = ["10", "01", "11"]
+    for rid in region_ids:
+        p = v.get_patch_by_id(rid)
+        if p is not None:
+            p.set_edgecolor("#1e293b")  # Color del borde
+            p.set_linewidth(2)  # Grosor del borde
+    
     # Dibujar contenedor del Universo si se provee
     if universe is not None:
         ax.set_xlim(-1.6, 1.6)
@@ -72,6 +81,9 @@ def draw_venn_with_highlight(a, b, op=None, labels=("A", "B"), universe=None):
         if p is not None:
             p.set_facecolor("#cbd5e1")
             p.set_alpha(0.3)
+            # Añadir bordes a los círculos
+            p.set_edgecolor("#1e293b")  # Color del borde
+            p.set_linewidth(2)  # Grosor del borde
 
     def highlight_regions(ids, color="#22c55e", alpha=0.6):
         for rid in ids:
