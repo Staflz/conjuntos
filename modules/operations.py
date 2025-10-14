@@ -33,23 +33,30 @@ def operate_binary_by_universe(universe: set[int], a: set[int], b: set[int], op:
     for x in sorted(universe):
         p = x in a
         q = x in b
-        if op == 'union':
-            if p or q:
-                result.append(x)
-        elif op == 'inter':
-            if p and q:
-                result.append(x)
-        elif op == 'diff_a_b':
-            if p and not q:
-                result.append(x)
-        elif op == 'diff_b_a':
-            if q and not p:
-                result.append(x)
-        elif op == 'sym':
-            if (p and not q) or (q and not p):
-                result.append(x)
-        else:
-            raise ValueError('Operador no soportado')
+
+        match op:
+            case 'union':
+                if p or q:
+                    result.append(x)
+            
+            case 'inter':
+                if p and q:
+                    result.append(x)
+            
+            case 'diff_a_b':
+                if p and not q:
+                    result.append(x)
+            
+            case 'diff_b_a':
+                if q and not p:
+                    result.append(x)
+            
+            case 'sym':
+                if (p and not q) or (q and not p):
+                    result.append(x)
+            
+            case _:
+                raise ValueError(f'Operador no soportado: {op}')
     return set(result)
 
 

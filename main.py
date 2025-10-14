@@ -289,27 +289,29 @@ def on_click_operation(op):
         return
     # Ya garantizamos que U contiene A y B mediante effective_u, no es necesario validar pertenencia
     # Usar la versión basada en universo para alinear con la lógica Java
-    if op == "union":
-        update_solution(operate_binary_by_universe(u, a, b, 'union'))
-        st.session_state["last_op"] = "union"
-    elif op == "inter":
-        update_solution(operate_binary_by_universe(u, a, b, 'inter'))
-        st.session_state["last_op"] = "inter"
-    elif op == "a_b":
-        update_solution(operate_binary_by_universe(u, a, b, 'diff_a_b'))
-        st.session_state["last_op"] = "diff_a_b"
-    elif op == "b_a":
-        update_solution(operate_binary_by_universe(u, a, b, 'diff_b_a'))
-        st.session_state["last_op"] = "diff_b_a"
-    elif op == "sym":
-        update_solution(operate_binary_by_universe(u, a, b, 'sym'))
-        st.session_state["last_op"] = "sym"
-    elif op == "comp_a":
-        update_solution(operate_unary_by_universe(u, a, 'comp'))
-        st.session_state["last_op"] = "comp_a"
-    elif op == "comp_b":
-        update_solution(operate_unary_by_universe(u, b, 'comp'))
-        st.session_state["last_op"] = "comp_b"
+
+    match op:
+        case "union":
+            update_solution(operate_binary_by_universe(u, a, b, 'union'))
+            st.session_state["last_op"] = "union"
+        case "inter":
+            update_solution(operate_binary_by_universe(u, a, b, 'inter'))
+            st.session_state["last_op"] = "inter"
+        case "a_b":
+            update_solution(operate_binary_by_universe(u, a, b, 'diff_a_b'))
+            st.session_state["last_op"] = "diff_a_b"
+        case "b_a":
+            update_solution(operate_binary_by_universe(u, a, b, 'diff_b_a'))
+            st.session_state["last_op"] = "diff_b_a"
+        case "sym":
+            update_solution(operate_binary_by_universe(u, a, b, 'sym'))
+            st.session_state["last_op"] = "sym"
+        case "comp_a":
+            update_solution(operate_unary_by_universe(u, a, 'comp'))
+            st.session_state["last_op"] = "comp_a"
+        case "comp_b":
+            update_solution(operate_unary_by_universe(u, b, 'comp'))
+            st.session_state["last_op"] = "comp_b"
 
 
 # Disparar operaciones según clic
